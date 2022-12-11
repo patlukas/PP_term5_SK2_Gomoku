@@ -9,10 +9,62 @@
 #include<pthread.h>
 
 
-int main(int argc, char *argv[]){
+int gomoku(int socket, int room, int ruch) {
+  /*
+    result
+      4 - wygrana przez poddanie
+      3 - wygrana
+      2 - remis
+      1 - przegrana
+      -1 - error
+  */
+  while(1) {
+    if(ruch == 0) {
+      int pole;
+      printf("Podaj pole: \n");
+      scanf("%d", &pole);
+      if(send(socket, &room, sizeof(room), 0) <= 0) {
+        printf("Problem z połączeniem (1)\n");
+        return -1;
+      }
+      int poleOk;
+      if(recv(socket, &poleOk, sizeof(poleOk), 0) <= 0) {
+        printf("Problem z połączeniem (2)\n");
+        return -1;
+      }
+      if(poleOk == -1) continue;
+      int ruchResult;
+      if(recv(socket, &ruchResult, sizeof(ruchResult), 0) <= 0) {
+        printf("Problem z połączeniem (3)\n");
+        return -1;
+      }
+      printf("Ruch result: %d\n", ruchResult);
+      if(ruchResult > 0) return ruchResult;
+      ruch = 1;
+    }
+    else {
+      int ruchRywala;
+      if(recv(socket, &ruchRywala, sizeof(ruchRywala), 0) <= 0) {
+        printf("Problem z połączeniem (4)\n");
+        return -1;
+      }
+      printf("Ruch rywala: %d\n", ruchRywala);
+      if(ruchRywala == -1) return 4;
+      int ruchResult;
+      if(recv(socket, &ruchResult, sizeof(ruchResult), 0) <= 0) {
+        printf("Problem z połączeniem (5)\n");
+        return -1;
+      }
+      printf("Ruch rywala result: %d\n", ruchResult);
+      if(ruchResult > 0) return ruchResult;
+      ruch = 0;
+    }
+  }
+  return -1;
+}
 
-  char message[256];
-  char buffer[256];
+int main(int argc, char *argv[]) {
+
   int clientSocket;
   struct sockaddr_in serverAddr;
   socklen_t addr_size;
@@ -29,10 +81,10 @@ int main(int argc, char *argv[]){
     
     connect(clientSocket, (struct sockaddr *) &serverAddr, addr_size);       
     while (1) {
-      int l;
+      int room;
       printf("Wait to room number\n");
-      scanf("%d", &l);
-      if(send(clientSocket, &l, sizeof(l), 0) < 0) printf("Send failed\n");
+      scanf("%d", &room);
+      if(send(clientSocket, &room, sizeof(room), 0) <= 0) printf("Send failed\n");
       int czyPokOk;
       if(recv(clientSocket, &czyPokOk, sizeof(czyPokOk), 0) < 0) printf("Receive failed\n");
       if(czyPokOk == -1) {
@@ -61,8 +113,8 @@ int main(int argc, char *argv[]){
         l == -2 - błędny numer pokoju
         l == -3 - błąd
       */
-     
-      printf("Data received: %d\n", start);
+     int result = gomoku(clientSocket, room, ruch);
+      printf("Data received: %d\n", result);
     //   memset(&message, 0, sizeof (message));
               
     }

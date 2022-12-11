@@ -12,6 +12,7 @@
 //gcc program.c -lpthread -Wall -o outfile Remember to link pthread bib
 
 int listRoom[3][2] = {{-1, -1}, {-1, -1}, {-1, -1}};
+int listGomokuBoards[3][225];
 
 
 int sendInfoAndCatchException(int socket, int sendVal, char errorMessage[], int idClientDisconnect, int pthreadExitWhenError) {
@@ -34,6 +35,10 @@ int resvDataAndCatchException(int socket, char errorMessage[], int idClientDisco
     return resultRecv;
 }
 
+void createGomokuBoard(int room) {
+    for(int i=0; i<225; i++) listGomokuBoards[room][i] = -1;
+}
+
 int reservingPlaceInRoom(int socket, int numberRoom, int numberPlace) {
     if(listRoom[numberRoom][numberPlace] == -1) {
         sendInfoAndCatchException(socket, 1, "Błąd podczas próby zaakceptowania pokoju", 1, 1);
@@ -51,6 +56,7 @@ int reservingPlaceInRoom(int socket, int numberRoom, int numberPlace) {
                     listRoom[numberRoom][numberPlace] = -1;
                     pthread_exit(NULL);
                 }
+                createGomokuBoard(numberRoom);
             }
         }
         if(resvDataAndCatchException(socket, "Błąd podczas kończenia wyboru pokoju (A)", 4) <= 0) {
@@ -86,13 +92,85 @@ int roomSelection(int socket) {
     return -1;
 }
 
+int checkPole(int room, int pole, int socket) {
+    if(pole < 0 || pole >= 225) return -1;
+    if(listGomokuBoards[room][pole] == -1) {
+        listGomokuBoards[room][pole] = socket;
+        return 0;
+    }   
+    return -1;
+}
+
+int getGameResult(int room, int socket) {
+    /*
+        sprawdza ułożenie pól i zwraca 
+        0 - brak rozstrzygnięcia
+        1 - przegrana
+        2 - remis
+        3 - wygrana
+    */
+   
+   return 0;
+}
+
+int gomokuGame_sendOppositeSocketAfterError(int oppositeSocket, int val, int room, int placeInRoom) {
+    send(oppositeSocket, &val, sizeof(val), 0);
+    listRoom[room][placeInRoom] = -1;
+    pthread_exit(NULL);
+}
+
+int gomokuGame(int socket, int room) {
+    /*
+        return:
+            -1 - error
+            4 - wygrana przez pddanie
+            2 - remis
+            3 - wygrana
+    */
+    int placeInRoom = 1;
+    int oppositeSocket = listRoom[room][0];
+    if(oppositeSocket == socket) {
+        placeInRoom = 0;
+        oppositeSocket = listRoom[room][1];
+    }
+    if(oppositeSocket == -1) {
+        printf("Error z pokojem: jedno z miejsc jest puste\n");
+        return -1;
+    }
+    while(1) {
+        int pole;
+        if(recv(socket, &pole, sizeof(pole), 0) <= 0) gomokuGame_sendOppositeSocketAfterError(oppositeSocket, -1, room, placeInRoom);
+        int poleOk = checkPole(room, pole, socket);
+        if(send(socket, &poleOk, sizeof(poleOk), 0) <= 0) gomokuGame_sendOppositeSocketAfterError(oppositeSocket, -1, room, placeInRoom);
+        if(poleOk == -1) continue;
+        if(send(oppositeSocket, &pole, sizeof(pole), 0) <= 0) {
+            int val = 4;
+            if(send(oppositeSocket, &val, sizeof(val), 0) <= 0) {
+                listRoom[room][placeInRoom] = -1;
+                pthread_exit(NULL);
+            };
+            return 4;
+        }
+        int result = getGameResult(room, socket);
+        if(send(socket, &result, sizeof(result), 0) <= 0) gomokuGame_sendOppositeSocketAfterError(oppositeSocket, 4, room, placeInRoom);
+        int oppositeResult = result;
+        if(result == 3) oppositeResult = 1;
+        send(oppositeSocket, &oppositeResult, sizeof(oppositeResult), 0);
+        if(result > 0) {
+            listRoom[room][placeInRoom] = -1;
+            return result;
+        }
+    }
+}
+
 void * clinetThread(void *arg) {
     int newSocket = *((int *)arg);
     printf("%d: Nr socket: %d\n", newSocket, newSocket);
     int selectedRoom = roomSelection(newSocket);
     
     printf("%d: przydział do pokoju %d\n",newSocket, selectedRoom);
-    while(1) {;}
+    int result = gomokuGame(newSocket, selectedRoom);
+    printf("%d: Rezultat gra: %d", newSocket, result);
     pthread_exit(NULL);
 }
 
