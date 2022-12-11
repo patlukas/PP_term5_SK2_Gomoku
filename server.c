@@ -11,61 +11,51 @@
 #define NUMBEROFROOMS 3
 //gcc program.c -lpthread -Wall -o outfile Remember to link pthread bib
 
-char client_message[256];
-char buffer[256];
 int listRoom[3][2] = {{-1, -1}, {-1, -1}, {-1, -1}};
 
 
+int sendInfoAndCatchException(int socket, int sendVal, char errorMessage[], int idClientDisconnect, int pthreadExitWhenError) {
+    int resultSend = send(socket, &sendVal, sizeof(sendVal), 0);
+    if(resultSend <= 0) {
+        if(resultSend == -1) printf("Error send: %s\n", errorMessage);
+        else if(idClientDisconnect > 0) printf("%d: Klient się rozłączył (%d)\n", socket, idClientDisconnect);
+        if(pthreadExitWhenError) pthread_exit(NULL);
+    }
+    return resultSend;
+}
+
+int resvDataAndCatchException(int socket, char errorMessage[], int idClientDisconnect) {
+    int data;
+    int resultRecv = recv(socket, &data, sizeof(data), 0);
+    if(resultRecv <= 0) {
+        if(resultRecv == -1) printf("Error recv: %s\n", errorMessage);
+        else if(idClientDisconnect > 0) printf("%d: Klient się rozłączył (%d)\n", socket, idClientDisconnect);
+    }
+    return resultRecv;
+}
+
 int reservingPlaceInRoom(int socket, int numberRoom, int numberPlace) {
     if(listRoom[numberRoom][numberPlace] == -1) {
+        sendInfoAndCatchException(socket, 1, "Błąd podczas próby zaakceptowania pokoju", 1, 1);
         listRoom[numberRoom][numberPlace] = socket;
-        int sendVal = 1;
-        int resultSend = send(socket, &sendVal, sizeof(sendVal), 0);
-        if(resultSend == -1) {
-            printf("Error send: Błąd podczas próby zaakceptowania pokoju\n");
-            return -2;
-        }
-        else if(resultSend == 0) {
-            listRoom[numberRoom][numberPlace] = -1;
-            printf("%d: Klient się rozłączył (1)\n", socket);
-            pthread_exit(NULL);
-        }
         int oppositePlace = 1 - numberPlace;
         int oppositeSocket = listRoom[numberRoom][oppositePlace];
         if(oppositeSocket != -1) {
-            int sendVal = 1;
-            int resultSend = send(oppositeSocket, &sendVal, sizeof(sendVal), 0);
-            if(resultSend == 0) listRoom[numberRoom][oppositePlace] = -1;
-            else if(resultSend == -1) {
-                printf("Error send: Błąd podczas wysyłania informacji do 1. socketu że jest rywal\n");
-                return -2;
+            int resultSend = sendInfoAndCatchException(oppositeSocket, 1, "Błąd podczas wysyłania informacji do 1. socketu że jest rywal", -1, 0);
+            if(resultSend <= 0) {
+                listRoom[numberRoom][oppositePlace] = -1;
+                if(resultSend == -1) close(oppositeSocket);
             }
             else {
-                resultSend = send(socket, &sendVal, sizeof(sendVal), 0);
-                if(resultSend == -1) {
-                    printf("Error send: Błąd podczas wysyłania informacji do 2. socketu że jest rywal\n");
-                }
-                else if(resultSend == 0) {
+                if(sendInfoAndCatchException(socket, 1, "Błąd podczas wysyłania informacji do 2. socketu że jest rywal", 2, 0) <= 0) {
                     listRoom[numberRoom][numberPlace] = -1;
-                    printf("%d: Klient się rozłączył (1)\n", socket);
                     pthread_exit(NULL);
                 }
             }
-            int m;
-            recv(socket, &m, sizeof(m), 0);
-        } else {
-            int m;
-            int resultRecv = recv(socket, &m, sizeof(m), 0);
-            if(resultRecv == -1) {
-                printf("Error recv: Błąd podczas otrzymywania potwierdzenia\n");
-                return -1;
-            }
-            else if(resultRecv == 0) {
-                listRoom[numberRoom][numberPlace] = -1;
-                printf("%d: Klient się rozłączył (2)\n", socket);
-                pthread_exit(NULL);
-            }
-            
+        }
+        if(resvDataAndCatchException(socket, "Błąd podczas kończenia wyboru pokoju (A)", 4) <= 0) {
+            listRoom[numberRoom][numberPlace] = -1;
+            pthread_exit(NULL);
         }
         return 1;
     }
@@ -76,64 +66,20 @@ int roomSelection(int socket) {
     while(1) {
         int selectedRoom;
         int resultRecv = recv(socket, &selectedRoom, sizeof(selectedRoom), 0);
-        if(resultRecv == -1) {
-            printf("Error recv: Błąd podczas odczytywania numeru pokoju\n");
-            int sendVal = -3;
-            int resultSend = send(socket, &sendVal, sizeof(sendVal), 0);
-            if(resultSend == -1) {
-                printf("Error send: Błąd podczas wysyłania informcji o błędzie\n");
-            }
-            else if(resultSend == 0) {
-                printf("%d: Klient się rozłączył (4)\n", socket);
-                pthread_exit(NULL);
-            }
-            continue;
-        }
-        else if(resultRecv == 0) {
-            printf("%d: Klient się rozłączył (3)\n", socket);
+        if(resultRecv <= 0) {
+            if(resultRecv == -1) printf("Error recv: Błąd podczas odczytywania numeru pokoju\n");
+            else printf("%d: Klient się rozłączył (6)\n", socket);
             pthread_exit(NULL);
         }
         if(selectedRoom < 0 || selectedRoom >= NUMBEROFROOMS) {
-            int sendVal = -2;
-            int resultSend = send(socket, &sendVal, sizeof(sendVal), 0);
-            if(resultSend == -1) {
-                printf("Error send: Błąd podczas wysyłania informcji o błędnym numerze pokoju\n");
-            }
-            else if(resultSend == 0) {
-                printf("%d: Klient się rozłączył (5)\n", socket);
-                pthread_exit(NULL);
-            }
-            continue;
+            sendInfoAndCatchException(socket, -2, "Błąd podczas wysyłania informcji o błędnym numerze pokoju", 7, 1);
         }
         printf("%d: wybrał %d pokój\n", socket, selectedRoom);
         int reservingResult = reservingPlaceInRoom(socket, selectedRoom, 0);
-        if(reservingResult == -1) {
-            reservingResult = reservingPlaceInRoom(socket, selectedRoom, 1);
-        }
+        if(reservingResult == -1) reservingResult = reservingPlaceInRoom(socket, selectedRoom, 1);
         if(reservingResult == -1) {
             printf("%d: Pokój zajęty\n", socket);
-            int sendVal = -1;
-            int resultSend = send(socket, &sendVal, sizeof(sendVal), 0);
-            if(resultSend == -1) {
-                printf("Error send: Błąd podczas wysyłania informcji o zajętym pokoju\n");
-            }
-            else if(resultSend == 0) {
-                printf("%d: Klient się rozłączył (6)\n", socket);
-                pthread_exit(NULL);
-            }
-            continue;
-        }
-        else if(reservingResult == -2) {
-            int sendVal = -3;
-            int resultSend = send(socket, &sendVal, sizeof(sendVal), 0);
-            if(resultSend == -1) {
-                printf("Error send: Błąd podczas wysyłania informcji o błędzie w reservingPlaceInRoom\n");
-            }
-            else if(resultSend == 0) {
-                printf("%d: Klient się rozłączył (7)\n", socket);
-                pthread_exit(NULL);
-            }
-            continue;
+            sendInfoAndCatchException(socket, -1, "Błąd podczas wysyłania informcji o zajętym pokoju", 8, 1);
         }
         else return selectedRoom;
     }
@@ -147,16 +93,6 @@ void * clinetThread(void *arg) {
     
     printf("%d: przydział do pokoju %d\n",newSocket, selectedRoom);
     while(1) {;}
-    while(1) {
-        int l;
-        recv(newSocket, &l, sizeof(l), 0);
-
-        printf("%d", l);
-        char* message = "message";
-        send(newSocket, message, sizeof(message), 0);
-        if (!strcmp(message, "koniec")) break;
-        memset(&client_message, 0, sizeof (client_message));
-    }
     pthread_exit(NULL);
 }
 
@@ -179,9 +115,7 @@ int createServerSocket() {
         exit (EXIT_FAILURE);
     }
 
-    if(listen(serverSocket, 10) == 0) {
-        printf("Serwer oczekuje na połączenie...\n");
-    }
+    if(listen(serverSocket, 10) == 0) printf("Serwer oczekuje na połączenie...\n");
     else {
         printf("Error listen: Błąd podczas ustawiania gniazda jako giazdo pasywne\n");
         exit (EXIT_FAILURE);
@@ -205,9 +139,7 @@ int createConnect(int serverSocket) {
 
 void createThreadToClientConnect(int socket) {
     pthread_t thread_id;
-    if( pthread_create(&thread_id, NULL, clinetThread, &socket) != 0) {
-        printf("Error pthread_create: Błąd podczas tworzenia wątku\n");
-    }
+    if( pthread_create(&thread_id, NULL, clinetThread, &socket) != 0) printf("Error pthread_create: Błąd podczas tworzenia wątku\n");
     pthread_detach(thread_id);
 }
 
@@ -217,6 +149,5 @@ int main(){
         int newSocket = createConnect(serverSocket);
         createThreadToClientConnect(newSocket);
     }
-
     return 0;
 }
