@@ -47,8 +47,12 @@ int main(int argc, char *argv[]){
         printf("Error\n");
         continue;
       }
-      int isRywal;
-      if(recv(clientSocket, &isRywal, sizeof(isRywal), 0) < 0) printf("Receive failed\n");
+      int ruch;
+      if(recv(clientSocket, &ruch, sizeof(ruch), 0) < 0) printf("Receive failed\n");
+      /*
+        ruch == 0 - zaczyna
+        ruch == 1 - rywal zaczyna
+      */
       int start = 1;
       if(send(clientSocket, &start, sizeof(start), 0) < 0) printf("Send failed\n");
       /*

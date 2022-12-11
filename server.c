@@ -41,7 +41,7 @@ int reservingPlaceInRoom(int socket, int numberRoom, int numberPlace) {
         int oppositePlace = 1 - numberPlace;
         int oppositeSocket = listRoom[numberRoom][oppositePlace];
         if(oppositeSocket != -1) {
-            int resultSend = sendInfoAndCatchException(oppositeSocket, 1, "Błąd podczas wysyłania informacji do 1. socketu że jest rywal", -1, 0);
+            int resultSend = sendInfoAndCatchException(oppositeSocket, 0, "Błąd podczas wysyłania informacji do 1. socketu że jest rywal", -1, 0);
             if(resultSend <= 0) {
                 listRoom[numberRoom][oppositePlace] = -1;
                 if(resultSend == -1) close(oppositeSocket);
