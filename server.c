@@ -109,11 +109,60 @@ int getGameResult(int room, int socket) {
         2 - remis
         3 - wygrana
     */
+   //sprawdzanie wygranej w linii poziomej
    
-   return 0;
+    for(int i=0; i<15; i++) {
+        int lenX = 0;
+        int lenY = 0;
+        for(int j=0; j<15; j++) {
+            if(listGomokuBoards[room][i*15+j] == socket) lenX += 1;
+            else {
+                if(lenX == 5) return 3;
+                else lenX = 0;
+            }
+            if(j == 14 && lenX == 5) return 3;
+
+            if(listGomokuBoards[room][j*15+i] == socket) lenY += 1;
+            else {
+                if(lenY == 5) return 3;
+                else lenY = 0;
+            }
+            if(j == 14 && lenY == 5) return 3;
+        }
+    }
+    //spr przekątnej 1.
+    for(int i=0; i<=10; i++) {
+        int j = i;
+        int len = 0;
+        while(j < 225) {
+            if(listGomokuBoards[room][j] == socket) len += 1;
+            else {
+                if(len == 5) return 3;
+                else len = 0;
+            }
+            if(j + 16 >= 225 && len == 5) return 3;
+            j += 16;
+        }
+        j = 210 + i;
+        len = 0;
+        while(j > 0) {
+            if(listGomokuBoards[room][j] == socket) len += 1;
+            else {
+                if(len == 5) return 3;
+                else len = 0;
+            }
+            if(j - 14 < 0 && len == 5) return 3;
+            j -= 14;
+        }
+    }
+    for(int i=0; i<225; i++) {
+        if(listGomokuBoards[room][i] == -1) return 0;
+    }
+    return 2;
 }
 
-int gomokuGame_sendOppositeSocketAfterError(int oppositeSocket, int val, int room, int placeInRoom) {
+int gomokuGame_sendOppositeSocketAfterError(int oppositeSocket, int val, int room, int placeInRoom, int socket, int nrError) {
+    printf("%d: Problem z połączeniem, więc koniec rozgrywki w pokoju %d i zwolniono miejsce (%d)\n", socket, room, nrError);
     send(oppositeSocket, &val, sizeof(val), 0);
     listRoom[room][placeInRoom] = -1;
     pthread_exit(NULL);
@@ -139,20 +188,22 @@ int gomokuGame(int socket, int room) {
     }
     while(1) {
         int pole;
-        if(recv(socket, &pole, sizeof(pole), 0) <= 0) gomokuGame_sendOppositeSocketAfterError(oppositeSocket, -1, room, placeInRoom);
+        if(recv(socket, &pole, sizeof(pole), 0) <= 0) gomokuGame_sendOppositeSocketAfterError(oppositeSocket, -1, room, placeInRoom, socket, 1);
         int poleOk = checkPole(room, pole, socket);
-        if(send(socket, &poleOk, sizeof(poleOk), 0) <= 0) gomokuGame_sendOppositeSocketAfterError(oppositeSocket, -1, room, placeInRoom);
+        if(send(socket, &poleOk, sizeof(poleOk), 0) <= 0) gomokuGame_sendOppositeSocketAfterError(oppositeSocket, -1, room, placeInRoom, socket, 2);
         if(poleOk == -1) continue;
         if(send(oppositeSocket, &pole, sizeof(pole), 0) <= 0) {
+            printf("%d: Brak połączenia z rywalem więc koniec rozgrywki w pokoju %d\n", socket, room);
+            listRoom[room][placeInRoom] = -1;
             int val = 4;
-            if(send(oppositeSocket, &val, sizeof(val), 0) <= 0) {
-                listRoom[room][placeInRoom] = -1;
+            if(send(socket, &val, sizeof(val), 0) <= 0) {
+                printf("%d: Problem z połączeniem, więc koniec rozgrywki w pokoju %d i zwolniono miejsce (4)\n", socket, room);
                 pthread_exit(NULL);
             };
             return 4;
         }
         int result = getGameResult(room, socket);
-        if(send(socket, &result, sizeof(result), 0) <= 0) gomokuGame_sendOppositeSocketAfterError(oppositeSocket, 4, room, placeInRoom);
+        if(send(socket, &result, sizeof(result), 0) <= 0) gomokuGame_sendOppositeSocketAfterError(oppositeSocket, 4, room, placeInRoom, socket, 3);
         int oppositeResult = result;
         if(result == 3) oppositeResult = 1;
         send(oppositeSocket, &oppositeResult, sizeof(oppositeResult), 0);

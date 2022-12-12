@@ -23,7 +23,7 @@ int gomoku(int socket, int room, int ruch) {
       int pole;
       printf("Podaj pole: \n");
       scanf("%d", &pole);
-      if(send(socket, &room, sizeof(room), 0) <= 0) {
+      if(send(socket, &pole, sizeof(pole), 0) <= 0) {
         printf("Problem z połączeniem (1)\n");
         return -1;
       }
