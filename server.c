@@ -78,7 +78,9 @@ int roomSelection(int socket) {
             pthread_exit(NULL);
         }
         if(selectedRoom < 0 || selectedRoom >= NUMBEROFROOMS) {
+            printf("%d: wybrał %d pokój, a jest to niepoprawny numer\n", socket, selectedRoom);
             sendInfoAndCatchException(socket, -2, "Błąd podczas wysyłania informcji o błędnym numerze pokoju", 7, 1);
+            continue;
         }
         printf("%d: wybrał %d pokój\n", socket, selectedRoom);
         int reservingResult = reservingPlaceInRoom(socket, selectedRoom, 0);
@@ -143,7 +145,30 @@ int getGameResult(int room, int socket) {
             if(j + 16 >= 225 && len == 5) return 3;
             j += 16;
         }
+        j = i*15;
+        len = 0;
+        while(j < 225) {
+            if(listGomokuBoards[room][j] == socket) len += 1;
+            else {
+                if(len == 5) return 3;
+                else len = 0;
+            }
+            if(j + 16 >= 225 && len == 5) return 3;
+            j += 16;
+        }
+        
         j = 210 + i;
+        len = 0;
+        while(j > 0) {
+            if(listGomokuBoards[room][j] == socket) len += 1;
+            else {
+                if(len == 5) return 3;
+                else len = 0;
+            }
+            if(j - 14 < 0 && len == 5) return 3;
+            j -= 14;
+        }
+        j = (14 - i) * 15;
         len = 0;
         while(j > 0) {
             if(listGomokuBoards[room][j] == socket) len += 1;
@@ -221,7 +246,7 @@ void * clinetThread(void *arg) {
     
     printf("%d: przydział do pokoju %d\n",newSocket, selectedRoom);
     int result = gomokuGame(newSocket, selectedRoom);
-    printf("%d: Rezultat gra: %d", newSocket, result);
+    printf("%d: Rezultat gra: %d\n", newSocket, result);
     pthread_exit(NULL);
 }
 

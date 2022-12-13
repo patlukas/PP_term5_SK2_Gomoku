@@ -64,7 +64,8 @@ int gomoku(int socket, int room, int ruch) {
 }
 
 int main(int argc, char *argv[]) {
-
+  int k = 0;
+  printf("%d\n", sizeof(k));
   int clientSocket;
   struct sockaddr_in serverAddr;
   socklen_t addr_size;
@@ -75,7 +76,7 @@ int main(int argc, char *argv[]) {
   //Configure settings of the server address
   serverAddr.sin_family = AF_INET;
   serverAddr.sin_port = htons(1100);
-  serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  serverAddr.sin_addr.s_addr = inet_addr("192.168.1.9");
 
     addr_size = sizeof serverAddr;
     
