@@ -1,5 +1,8 @@
 import socket
-import tkinter as tk
+try:
+    import tkinter as tk
+except Exception:
+    import Tkinter as tk
 import threading
 
 stop = False
