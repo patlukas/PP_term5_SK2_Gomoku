@@ -22,6 +22,7 @@ class Gui:
         self.frame_select_room = self.__create_frame_select_room()
         self.frame_gomoku = self.__create_frame_gomoku()
         self.frame_wait = self.__create_frame_wait()
+        self.frame_disconnect = self.__create_frame_disconnect()
         self.frame_connect.pack()
 
     @staticmethod
@@ -84,6 +85,12 @@ class Gui:
                 self.list_pola.append(button)
         return frame
 
+    def __create_frame_disconnect(self):
+        frame = tk.Frame(master=self.window)
+        label = tk.Label(master=frame, text="Utracono połączenie z serwerem")
+        label.pack()
+        return frame
+
     def __connect_to_server(self):
         address = self.connect_entry.get()
         print(address)
@@ -91,7 +98,7 @@ class Gui:
             self.socket.connect((address, 1100))
             self.frame_connect.destroy()
             self.frame_select_room.pack()
-        except Exception:
+        except OSError:
             self.connect_label_error.config(text="Błędny adres")
 
     def __select_room(self):
@@ -100,20 +107,22 @@ class Gui:
 
     def __select_room__thread(self):
         try:
-            room = self.room_entry.get()
-            room = int(room)
+            room = int(self.room_entry.get())
             self.socket.send(room.to_bytes(4, 'little', signed=True))
             data = int.from_bytes(self.socket.recv(4), "little", signed=True)
-            if data < 0:
-                if data == -3:
+            if data <= 0:
+                if data == 0:
+                    self.frame_select_room.destroy()
+                    self.frame_disconnect.pack()
+                elif data == -3:
                     self.room_label_error.config(text="Błąd")
                 elif data == -2:
                     self.room_label_error.config(text="Niepoprawny numer pokoju")
                 else:
                     self.room_label_error.config(text="Pokój zajęty")
                 return
-        except Exception as e:
-            self.room_label_error.config(text="Błędny numer pokoju")
+        except ValueError:
+            self.room_label_error.config(text="Numer pokoju musi być liczbą całkowitą")
             return
         self.frame_select_room.destroy()
         self.frame_wait.pack()
@@ -123,14 +132,16 @@ class Gui:
                 return
             try:
                 ruch = int.from_bytes(self.socket.recv(4), "little", signed=True)
-                self.socket.send(ruch.to_bytes(4, 'little', signed=True))
                 if ruch == 0:
-                    self.ruch = True
-                    self.sign = [" O ", " X "]
-                    self.bg = ["#33cc33", "#cc3333"]
+                    self.frame_wait.destroy()
+                    self.frame_disconnect.pack()
+                    return
+                if ruch == 1:
+                    self.ruch, self.sign, self.bg = True, self.sign[::-1], self.bg[::-1]
                     self.gomoku_label.config(text="Twój ruch")
+                self.socket.send(ruch.to_bytes(4, 'little', signed=True))
                 break
-            except Exception:
+            except socket.timeout:
                 continue
         self.frame_wait.destroy()
         self.frame_gomoku.pack()
@@ -145,19 +156,26 @@ class Gui:
         if pole_ok == -1:
             return
         self.ruch = False
+        if pole_ok == 0:
+            self.gomoku_label.config(text="Utracono połączenie z serwerem")
         if self.last_ruch is not None:
             self.last_ruch.config(bg=self.bg[1])
         self.list_pola[pole].config(text=self.sign[0], bg="yellow")
         self.last_ruch = self.list_pola[pole]
         ruch_result = int.from_bytes(self.socket.recv(4), "little", signed=True)
-        if ruch_result > 0:
+        if ruch_result > 1:
             self.socket.close()
-            if ruch_result == 1:
+            if ruch_result == 2:
                 self.gomoku_label.config(text="Przegrana")
-            elif ruch_result == 1:
+            elif ruch_result == 3:
                 self.gomoku_label.config(text="Remis")
-            else:
+            elif ruch_result == 4:
                 self.gomoku_label.config(text="Wygrana")
+            else:
+                self.gomoku_label.config(text="Wygrana przez poddanie")
+        elif ruch_result == 0:
+            self.socket.close()
+            self.gomoku_label.config(text="Utracono połączenie z serwerem")
         else:
             self.__gomoku_przyjmujacy()
 
@@ -175,8 +193,14 @@ class Gui:
             try:
                 ruch_rywala = int.from_bytes(self.socket.recv(4), "little", signed=True)
                 break
-            except Exception:
+            except socket.timeout:
                 continue
+        if ruch_rywala == 0:
+            self.socket.close()
+            self.gomoku_label.config(text="Utracono połączenie z serwerem")
+            return
+        if ruch_rywala > 0:
+            ruch_rywala -= 1
         self.ruch = True
         self.list_pola[ruch_rywala].config(text=self.sign[1], bg="yellow")
         if self.last_ruch is not None:
@@ -185,15 +209,21 @@ class Gui:
         if ruch_rywala == -1:
             self.gomoku_label.config(text="Wygrana przez poddanie")
         ruch_result = int.from_bytes(self.socket.recv(4), "little", signed=True)
-        if ruch_result > 0:
+        if ruch_result > 1:
             self.ruch = False
             self.socket.close()
-            if ruch_result == 1:
+            if ruch_result == 2:
                 self.gomoku_label.config(text="Przegrana")
-            elif ruch_result == 1:
+            elif ruch_result == 3:
                 self.gomoku_label.config(text="Remis")
-            else:
+            elif ruch_result == 4:
                 self.gomoku_label.config(text="Wygrana")
+            else:
+                self.gomoku_label.config(text="Wygrana przez poddanie")
+        elif ruch_result == 0:
+            self.socket.close()
+            self.gomoku_label.config(text="Utracono połączenie z serwerem")
+            self.ruch = False
         else:
             self.gomoku_label.config(text="Twój ruch")
 
