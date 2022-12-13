@@ -1,8 +1,5 @@
 import socket
-try:
-    import tkinter as tk
-except Exception:
-    import Tkinter as tk
+import tkinter as tk
 import threading
 
 stop = False
@@ -133,7 +130,7 @@ class Gui:
                     self.bg = ["#33cc33", "#cc3333"]
                     self.gomoku_label.config(text="Twój ruch")
                 break
-            except TimeoutError:
+            except Exception:
                 continue
         self.frame_wait.destroy()
         self.frame_gomoku.pack()
@@ -178,7 +175,7 @@ class Gui:
             try:
                 ruch_rywala = int.from_bytes(self.socket.recv(4), "little", signed=True)
                 break
-            except TimeoutError:
+            except Exception:
                 continue
         self.ruch = True
         self.list_pola[ruch_rywala].config(text=self.sign[1], bg="yellow")
