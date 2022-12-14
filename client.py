@@ -143,6 +143,10 @@ class Gui:
                 break
             except socket.timeout:
                 continue
+            except ConnectionResetError:
+                self.frame_wait.destroy()
+                self.frame_disconnect.pack()
+                return
         self.frame_wait.destroy()
         self.frame_gomoku.pack()
         if not self.ruch:
@@ -195,6 +199,10 @@ class Gui:
                 break
             except socket.timeout:
                 continue
+            except ConnectionResetError:
+                self.socket.close()
+                self.gomoku_label.config(text="Utracono połączenie z serwerem")
+                return
         if ruch_rywala == 0:
             self.socket.close()
             self.gomoku_label.config(text="Utracono połączenie z serwerem")
