@@ -156,7 +156,9 @@ class Gui:
         if not self.ruch:
             return
         self.socket.send(pole.to_bytes(4, 'little', signed=True))
-        pole_ok = int.from_bytes(self.socket.recv(4), "little", signed=True)
+        pole_ok = 2
+        while pole_ok < -1 or pole_ok > 1:
+            pole_ok = int.from_bytes(self.socket.recv(4), "little", signed=True)
         if pole_ok == -1:
             return
         self.ruch = False
@@ -167,6 +169,7 @@ class Gui:
         self.list_pola[pole].config(text=self.sign[0], bg="yellow")
         self.last_ruch = self.list_pola[pole]
         ruch_result = int.from_bytes(self.socket.recv(4), "little", signed=True)
+        print(ruch_result)
         if ruch_result > 1:
             self.socket.close()
             if ruch_result == 2:
@@ -203,9 +206,12 @@ class Gui:
                 self.socket.close()
                 self.gomoku_label.config(text="Utracono połączenie z serwerem")
                 return
-        if ruch_rywala == 0:
+        if ruch_rywala <= 0:
+            if ruch_rywala == -2:
+                self.gomoku_label.config(text="Wygrana przez poddanie")
+            else:
+                self.gomoku_label.config(text="Utracono połączenie z serwerem")
             self.socket.close()
-            self.gomoku_label.config(text="Utracono połączenie z serwerem")
             return
         if ruch_rywala > 0:
             ruch_rywala -= 1
@@ -214,8 +220,7 @@ class Gui:
         if self.last_ruch is not None:
             self.last_ruch.config(bg=self.bg[0])
         self.last_ruch = self.list_pola[ruch_rywala]
-        if ruch_rywala == -1:
-            self.gomoku_label.config(text="Wygrana przez poddanie")
+
         ruch_result = int.from_bytes(self.socket.recv(4), "little", signed=True)
         if ruch_result > 1:
             self.ruch = False
