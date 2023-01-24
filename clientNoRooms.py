@@ -19,7 +19,6 @@ class Gui:
         self.socket = self.__create_socket()
         self.last_ruch = None
         self.frame_connect = self.__create_frame_connect()
-        # self.frame_select_room = self.__create_frame_select_room()
         self.frame_gomoku = self.__create_frame_gomoku()
         self.frame_wait = self.__create_frame_wait()
         self.frame_disconnect = self.__create_frame_disconnect()
@@ -52,18 +51,6 @@ class Gui:
         button.pack()
         self.connect_label_error.pack()
         return frame
-
-    # def __create_frame_select_room(self):
-    #     frame = tk.Frame(master=self.window)
-    #     label = tk.Label(master=frame, text="Podaj numer pokoju")
-    #     self.room_entry = tk.Entry(master=frame)
-    #     button = tk.Button(master=frame, text="Wejdź do pokoju", command=self.__select_room)
-    #     self.room_label_error = tk.Label(master=frame, text="")
-    #     label.pack()
-    #     self.room_entry.pack()
-    #     button.pack()
-    #     self.room_label_error.pack()
-    #     return frame
 
     def __create_frame_wait(self):
         frame = tk.Frame(master=self.window)
@@ -103,30 +90,7 @@ class Gui:
         except OSError:
             self.connect_label_error.config(text="Błędny adres")
 
-    # def __select_room(self):
-    #     t3 = threading.Thread(target=self.__select_room__thread)
-    #     t3.start()
-
     def __select_room__thread(self):
-        # try:
-        #     room = int(self.room_entry.get())
-        #     self.socket.send(room.to_bytes(4, 'little', signed=True))
-        #     data = int.from_bytes(self.socket.recv(4), "little", signed=True)
-        #     if data <= 0:
-        #         if data == 0:
-        #             self.frame_select_room.destroy()
-        #             self.frame_disconnect.pack()
-        #         elif data == -3:
-        #             self.room_label_error.config(text="Błąd")
-        #         elif data == -2:
-        #             self.room_label_error.config(text="Niepoprawny numer pokoju")
-        #         else:
-        #             self.room_label_error.config(text="Pokój zajęty")
-        #         return
-        # except ValueError:
-        #     self.room_label_error.config(text="Numer pokoju musi być liczbą całkowitą")
-        #     return
-        # self.frame_select_room.destroy()
         self.socket.recv(4)
         self.frame_wait.pack()
         while True:
