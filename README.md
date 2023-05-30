@@ -1,5 +1,13 @@
 # PP_term5_SK2_Gomoku
 
+# O projekcie
+Projekt na zaliczenie przedmiotu "Sieci Komputerowe 2" na 5 semestrze studiów na PP. W repozytorium zanjdują się dwa rozwiązania projektu: 
+- z pokojami - czyli gracze muszą wybrać ten sam numer pokoju, aby ze sobą zagrać (client.py, server.c)
+- bez pokoi - czyli jeżeli dwóch graczy chce zagrać, to server ich połączy (clientNoRooms.py, serverNoRooms.c)
+
+Serwer należy uruchomić na linuxie.
+
+
 # O założeniach projektu
 ## Opis
 > Sieciowa turowa gra logiczna, np: szachy, warcaby, reversi. Jeden serwer do którego podłączają się gracze. Wspiera wiele równoległych rozgrywek między parami graczy. Wymagania: Walidacja ruchów po stronie serwera, powiadomienie o wyniku rozgrywki, wykrycie i obsługa rozłączenia gracza
